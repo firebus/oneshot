@@ -1,4 +1,4 @@
 oneshot
 =======
 
-Dumb little things
+Quickies
