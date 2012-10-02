@@ -1,0 +1,198 @@
+<html>
+<head>
+	<title>423-qualfied ESPP holding calculator</title>
+</head>
+
+<body>
+<h1>Graphing ESPP calculator</h1>
+
+<h2>Overview</h2>
+
+<ul>
+	<li>This one plots the net profit of qualifying vs. disqualifying distributions
+	over a range of sale prices.</li>
+
+	<li>This graph does not consider the annualized return, which is <strong>much</strong>
+	higher for an immediate disqualifying distribution (you sell right after you buy)
+	than for the corresponding qualifying distribution, assuming you have to hold for
+	18 months.</li>
+
+	<li>This graph also omits any treatment of the probability of a given sale price
+	given the market price.</li>
+	
+	<li>See the <a href="/node/270">previous post</a> for definitions of terms and an overview.</li>
+	
+	<li>I'm using <a href="http://people.iola.dk/olau/flot/">flot</a> for the graphing
+	with examples cut-and-pasted directly from their examples page. Awesome stuff</li>
+	
+	<li><strong>I am an accounting hobbyist and not a tax professional. These calculations are just for fun! Don't trust me! Don't blame me! Don't tase me!</strong></li>
+</ul>
+
+<h2>Calculator</h2>
+
+<form onSubmit="return calculate();">
+	<table>
+		<tr><td>Market price:</td><td>$<input type="text" id="market_price"></td></tr>
+		<tr><td>Lookback price:</td><td>$<input type="text" id="lookback_price"></td></tr>
+		<tr><td>Discount:</td><td><input type="text" id="discount_rate">%</td></tr>
+		<tr><td>Sale price range:</td><td>$<input type="text" id="low_sale_price" size=5> - <input type="text" id="high_sale_price" size=5></td></tr>
+		<tr><td>Regular tax rate:</td><td><input type="text" id="regular_tax_rate">%</td></tr>
+		<tr><td>Long-term capital gains tax rate:</td><td><input type="text" id="cg_tax_rate" value="15">%</td></tr>
+		<tr><td>Investment:</td><td>$<input type="text" id="investment"></td></tr>
+		<tr><td><input type="submit"></td></tr>
+	</table>
+</form>
+
+<h2>Results</h2>
+<div id="graph"></div>
+
+<script type="text/javascript">
+
+function calculate() {
+	var values = getValues()
+	, qualifying_series = []
+	, disqualifying_series = []
+	;
+
+	values.purchase_price = values.lookback_price * ((100 - values.discount_rate) / 100);
+	values.shares = values.investment / values.purchase_price;
+	
+	for (var i = values.low_sale_price; i <= values.high_sale_price; i++) {
+		values.profit = (values.shares * i) - values.investment;
+
+		var qualifying_net = calculateQualifying(values)
+		, disqualifying_net = calculateDisqualifying(values)
+		;
+		
+		qualifying_series.push([i, qualifying_net]);
+		disqualifying_series.push([i, disqualifying_net]);
+	}
+	
+	$.plot($('#graph'), [
+			{label: "Qual. Net", data: qualifying_series}
+			, {label: "Disqual. Net", data: disqualifying_series}
+	], {
+		series: {
+			lines: {
+				show: true
+			},
+			points: { 
+				show: true
+			}
+		}, 
+		grid: {
+			hoverable: true
+		},
+		legend: {
+			position: 'nw'
+		}
+	});
+	
+	// TODO: we need to wrap previousPoint in a closure
+	//       with previousPoint commented out, things are jumpy
+	//var previousPoint = null;
+	$("#graph").bind("plothover", function (event, pos, item) {
+		$("#x").text(pos.x.toFixed(2));
+		$("#y").text(pos.y.toFixed(2));
+	
+		if (item) {
+			//if (previousPoint != item.dataIndex) {
+				//previousPoint = item.dataIndex;
+				
+				$("#tooltip").remove();
+				var x = item.datapoint[0].toFixed(2),
+					y = item.datapoint[1].toFixed(2);
+				
+				showTooltip(item.pageX, item.pageY,
+							item.series.label + " at " + formatMoney(x) + " = " + formatMoney(y));
+			//}
+		}
+		else {
+			$("#tooltip").remove();
+			previousPoint = null;            
+		}
+	});
+
+	return false;
+}
+
+function calculateDisqualifying(values) {
+	var regular_income = values.profit
+	, tax = regular_income * (values.regular_tax_rate / 100)
+	, net_profit = values.profit - tax
+	;
+
+	return net_profit;
+}
+
+function calculateQualifying(values) {
+	var discount = (values.lookback_price - values.purchase_price) * values.shares
+	, regular_income = Math.min(discount, values.profit)
+	, capital_gains = values.profit - regular_income
+	, tax = (regular_income * (values.regular_tax_rate / 100)) + (capital_gains * (values.cg_tax_rate / 100)) 
+	, net_profit = values.profit - tax
+	;
+	
+	return net_profit;
+}
+
+function getValues() {
+	return {
+		'lookback_price' : $('#lookback_price').val()
+		, 'market_price' : $('#market_price').val()
+		, 'discount_rate' : $('#discount_rate').val()
+		, 'low_sale_price' : $('#low_sale_price').val()
+		, 'high_sale_price' : $('#high_sale_price').val()
+		, 'regular_tax_rate' : $('#regular_tax_rate').val()
+		, 'cg_tax_rate' : $('#cg_tax_rate').val()
+		, 'investment' : $('#investment').val()
+	};
+}
+
+// thanks http://www.mredkj.com/javascript/numberFormat.html
+function formatMoney(price) {
+	console.log(price);
+	price = Math.round(price * 100) / 100;
+	price += '';
+	var x = price.split('.');
+	var dollars = x[0];
+	var cents = x.length > 1 ? '.' + x[1] : '.00';
+	var rgx = /(\d+)(\d{3})/;
+	while (rgx.test(dollars)) {
+		dollars = dollars.replace(rgx, '$1' + ',' + '$2');
+	}
+  return '$' + dollars + cents;
+}
+
+function showTooltip(x, y, contents) {
+	$('<div id="tooltip">' + contents + '</div>').css( {
+		position: 'absolute',
+		display: 'none',
+		top: y + 5,
+		left: x + 5,
+		border: '1px solid #fdd',
+		padding: '2px',
+		'background-color': '#fee',
+		opacity: 0.80
+	}).appendTo("body").fadeIn(200);
+}
+
+</script>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script src="http://people.iola.dk/olau/flot/jquery.flot.js" type="text/javascript"></script>
+
+<style>
+dt {
+	font-weight: bold;
+}
+
+#graph {
+	width: 600px;
+	height: 600px;
+}
+
+</style>
+
+</body>
+</html>

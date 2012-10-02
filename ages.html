@@ -1,0 +1,252 @@
+<html>
+	<head>
+		<title>Chronumerology</title>
+		<style>
+			dt {
+				font-weight: bold;
+			}
+
+			#graph {
+				width: 600px;
+				height: 600px;
+			}
+		</style>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+		<script src="http://people.iola.dk/olau/flot/jquery.flot.js" type="text/javascript"></script>
+	</head>
+	<body>
+		<h1>Chronumerology</h1>
+		
+		<form id="birthdays">
+			<div class="birthday">
+				Birthday 1:
+				<input id="year1" value="year" maxlength="4" class="erasable" type="text"
+					/>-<input id="month1" value="month" class="erasable" maxlength="2" type="text"
+					/>-<input id="day1" value="day" class="erasable" maxlength="2" type="text"/>
+			</div>
+			<div class="birthday">
+				Birthday 2:
+				<input id="year2" value="year" maxlength="4" class="erasable" type="text"
+					/>-<input id="month2" value="month" class="erasable" maxlength="2" type="text"
+					/>-<input id="day2" value="day" class="erasable" maxlength="2" type="text"/>
+			</div>
+			<input type="submit" />
+		</form>
+
+		<div id="graph"></div>
+		
+		<script>
+			/**
+			 * If the value of an input is the same as its hint, then empty the input
+			 */
+			function erase(input) {
+				var hint = input.attr('id');
+				hint = hint.replace(/[\d]/g, '');
+				if (input.val() == hint) {
+					input.val('');
+				}
+			}
+
+			/**
+			 * If the input is empty, then repopulate its hint
+			 */
+			function fill(input) {
+				var hint = input.attr('id');
+				hint = hint.replace(/[\d]/g, '');
+				if (input.val() == '') {
+					input.val(hint);
+				}
+			}
+
+			/**
+			 * Calculate 3 datapoints at each birthday
+			 * Start with first birthday of the younger person
+			 * End with the 100th birthday of the oldest person
+			 */
+			function plotBirthdays(dataset) {
+				var person1 = new Date($('#year1').val(), $('#month1').val() - 1, $('#day1').val());
+				var person2 = new Date($('#year2').val(), $('#month2').val() - 1, $('#day2').val());
+
+				// Who is older?
+				if (person1 < person2) {
+					var oldest = person1;
+					var youngest = person2;
+				}
+				else {
+					var oldest = person2;
+					var youngest = person1;
+				}
+
+				// Who has a birthday first?
+				var birthday1 = new Date(1900, oldest.getMonth(), oldest.getDate());
+				var birthday2 = new Date(1900, youngest.getMonth(), youngest.getDate());
+				if (birthday1 < birthday2) {
+					var oldestFirst = true;
+				}
+				else {
+					var oldestFirst = false;
+				}
+
+				var oldestAge
+				, youngestAge
+				, curDate;
+				for (var curYear = oldest.getFullYear(); curYear < (oldest.getFullYear() + 100); curYear++) {
+					// How old folks are at end of last year
+					oldestAge = curYear - oldest.getFullYear() - 1;
+					youngestAge = curYear - youngest.getFullYear() - 1;
+
+					// Youngest is not born yet, continue
+					if (youngestAge < 0) {
+						continue;
+					}
+					// Youngest is born this year, one or two datapoints depending on who has an earlier birthday
+					else if (youngestAge == -1) {
+						// One datapoint
+						if (oldestFirst) {
+							oldestAge++;
+
+							youngestAge++;
+							curDate = new Date(curYear, youngest.getMonth(), youngest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+						}
+						// Two datapoints
+						else {
+							youngestAge++;
+							curDate = new Date(curYear, youngest.getMonth(), youngest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+
+							oldestAge++;
+							curDate = new Date(curYear, oldest.getMonth(), oldest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+						}
+					}
+					// Two datapoints
+					else {
+						if (oldestFirst) {
+							oldestAge++;
+							curDate = new Date(curYear, oldest.getMonth(), oldest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+
+							youngestAge++;
+							curDate = new Date(curYear, youngest.getMonth(), youngest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+						}
+						else {
+							youngestAge++;
+							curDate = new Date(curYear, youngest.getMonth(), youngest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+
+							oldestAge++;
+							curDate = new Date(curYear, oldest.getMonth(), oldest.getDate());
+							generateDataPoint(oldestAge, youngestAge, curDate, dataset);
+						}
+					}
+				}
+				
+				$.plot($('#graph'), 
+					[
+						{
+							label: "AND"
+							, data: dataset.and
+						}, {
+							label: "OR"
+							, data: dataset.or
+						}, {
+							label: "XOR"
+							, data: dataset.xor
+						}
+					], {
+						series: {
+							lines: {
+								show: true
+							},
+							points: { 
+								show: true
+							}
+						}, grid: {
+							hoverable: true
+						}, legend: {
+							position: 'nw'
+						}
+					}
+				);
+			}
+
+			function generateDataPoint(age1, age2, curDate, dataset) {
+				var x = curDate.toLocaleFormat('%Y%m%d');
+				/* var x = curDate.valueOf(); */
+				dataset.and.push([x, age1 & age2]);
+				dataset.or.push([x, age1 | age2]);
+				dataset.xor.push([x, age1 ^ age2]);
+			}
+
+			function resetData() {
+				var cleanData = {
+					'and': []
+					, 'or': []
+					, 'xor': []
+				};
+				
+				return cleanData;
+			}
+
+			function showTooltip(x, y, contents) {
+				$('<div id="tooltip">' + contents + '</div>').css( {
+					position: 'absolute',
+					display: 'none',
+					top: y + 5,
+					left: x + 5,
+					border: '1px solid #fdd',
+					padding: '2px',
+					'background-color': '#fee',
+					opacity: 0.80
+				}).appendTo("body").fadeIn(200);
+			}
+			
+			$(function() {
+				$('.erasable').focus(function() {
+					erase($(this));
+				});
+				
+				$('.erasable').blur(function() {
+					fill($(this));
+				});
+
+				$('#birthdays').submit(function() {
+					var dataset = resetData();
+					plotBirthdays(dataset);
+					return false;				
+				});
+				
+				
+				// TODO: we need to wrap previousPoint in a closure
+				//       with previousPoint commented out, things are jumpy
+				//var previousPoint = null;
+				$('#graph').bind('plothover', function (event, pos, item) {
+					$('#x').text(pos.x.toFixed(2));
+					$('#y').text(pos.y.toFixed(2));
+
+					if (item) {
+						//if (previousPoint != item.dataIndex) {
+							//previousPoint = item.dataIndex;
+
+							$('#tooltip').remove();
+							var x = item.datapoint[0].toFixed(2)
+							, y = item.datapoint[1].toFixed(2),
+							dateString = x.replace(/^(\d{4})(\d{2})(\d{2}).*$/, '$1-$2-$3');
+							
+							showTooltip(
+								item.pageX, 
+								item.pageY,
+								item.series.label + ' at ' + dateString + ' = ' + y);
+						//}
+					}
+					else {
+						$('#tooltip').remove();
+						//previousPoint = null;            
+					}
+				});
+			});
+		</script>
+	</body>
+</html>

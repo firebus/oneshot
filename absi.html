@@ -1,0 +1,562 @@
+<html>
+<head>
+	<title>ABSI calculator</title>
+</head>
+
+<body>
+<h1>ABSI calculator</h1>
+
+<h2>Overview</h2>
+
+<p>
+	BMI has been used as a measure of health for quite some time, but the data doesn't support a strong correlation between BMI
+	and mortality. The problem is that BMI doesn't distinguish between fat and muscle, or between good and bad distribution of fat.
+</p>
+
+<p>
+	Recently, waist circumference has been proposed as a more-accurate metric, but this measurement also has it's limitations.
+	Since WC and BMI are highly correlated, so there may be a limit to how much extra information can be derived from WC.
+</p>
+
+<p>
+	<a href="http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0039504">A recent paper</a> suggests a new
+	measure, designed to be maximally correlated with mortality, and minimally correlated with BMI and WC. This may or may not be 
+	meaningful. But here's a calculator for it :) Your z-score is based on the data in the paper, and is the number of standard 
+	deviations away from the mean for your sex and age you are. Higher is worse.
+</p>
+
+<p>
+	I'm not sure why this paper ignores WC/Height ratio, which has also been proposed as a metric, and resolves some of the
+	problems given for WC.
+</p>
+
+<p>
+	Citations for all of the above and a much better discussion of the research is available in
+	<a href="http://blogs.plos.org/obesitypanacea/2012/07/25/the-body-shape-index">this Obesity Panacea blog post by Travis
+	Saunders</a>
+</p>
+
+<h2>Calculator</h2>
+
+<form class="calculator">
+	<table>
+		<tr><td>Age</td><td><input type="text" id="age"> years</td></tr>
+		<tr><td>Sex</td><td><select id="sex"><option value="m">Male</option><option value="f">Female</option></select></td></tr>
+		<tr><td>Height</td><td><input type="text" id="height"> centimeters</td></tr>
+		<tr><td>Weight</td><td><input type="text" id="weight"> kilograms</td></tr>
+		<tr><td>Waist Circumference</td><td><input type="text" id="wc"> centimeters</td></tr>
+		<tr><td><input type="submit"></td></tr>
+	</table>
+</form>
+
+<h2>Results</h2>
+<div class="result">
+	<table>
+		<tr><td>BMI: </td><td id="bmi">---</td><td>(18.5 - 25 is normal. 25 - 30 is overweight. >30 is obese.)</td></tr>
+		<tr><td>WC/Height ratio: </td><td id="wc-ratio">---</td><td>(Over 0.5 is critical, 0.6 if you are over 50)</td></tr>
+		<tr><td>ABSI: </td><td id="absi">---</td><td>(Mean varies by age and sex.)</td></tr>
+		<tr><td>ABSI z-score: </td><td id="z-score">---</td><td>(33% increase in mortality per standard deviation from mean.)</tr>
+	</table>
+</div>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+
+$(document).ready(function() {
+	$('form.calculator').submit(function() {
+		calculate();
+		return false;
+	})
+});
+
+function calculate() {
+	var values = getValues();
+	values['bmi'] = calculateBMI(values['height'], values['weight']);
+	values['wc-ratio'] = calculateWCRatio(values['wc'], values['height']);
+	values['absi'] = calculateABSI(values['wc'], values['bmi'], values['height']);
+	values['mean'] = lookupData(values['age'], values['sex'], 'mean');
+	values['stddev'] = lookupData(values['age'], values['sex'], 'stddev');
+	values['z-score'] = calculateZScore(values['absi'], values['mean'], values['stddev']);
+
+	var results = ['bmi', 'wc-ratio', 'absi', 'z-score'];
+	for (var i = 0; i < results.length; i++) {
+		$('#' + results[i]).html(values[results[i]]);
+	}
+}
+
+function getValues() {
+	var values = {};
+	var variables = ['age', 'sex', 'height', 'weight', 'wc'];
+	for (var i = 0; i < variables.length; i++) {
+		values[variables[i]] = $('#' + variables[i]).val();
+	}
+	return values;
+}
+
+function calculateBMI(height, weight) {
+	var meters = height / 100;
+	return weight / (meters * meters);
+}
+
+function calculateWCRatio(wc, height) {
+	return wc / height;
+}
+
+function calculateABSI(wc, bmi, height) {
+	var meters = height / 100;
+	var wcMeters = wc / 100;
+	var absi = wcMeters / (Math.pow(bmi, 2/3) * Math.pow(meters, 1/2)); 
+	return absi;
+}
+
+function calculateZScore(absi, mean, stddev) {
+	return (absi - mean) / stddev;
+}
+
+function lookupData(age, sex, value) {
+	if (age > 85) {
+		age = 85;
+	}
+	else if (age < 2) {
+		age = 2;
+	}
+	
+	var data = [];
+	data[2] = {};
+	data[2]["mmean"] = 0.0789;
+	data[2]["mstddev"] = 0.00384;
+	data[2]["fmean"] = 0.08031;
+	data[2]["fstddev"] = 0.00363;
+	data[3] = {};
+	data[3]["mmean"] = 0.07915;
+	data[3]["mstddev"] = 0.00384;
+	data[3]["fmean"] = 0.08016;
+	data[3]["fstddev"] = 0.00366;
+	data[4] = {};
+	data[4]["mmean"] = 0.07937;
+	data[4]["mstddev"] = 0.00383;
+	data[4]["fmean"] = 0.08001;
+	data[4]["fstddev"] = 0.00369;
+	data[5] = {};
+	data[5]["mmean"] = 0.07955;
+	data[5]["mstddev"] = 0.00383;
+	data[5]["fmean"] = 0.07985;
+	data[5]["fstddev"] = 0.00372;
+	data[6] = {};
+	data[6]["mmean"] = 0.07964;
+	data[6]["mstddev"] = 0.00382;
+	data[6]["fmean"] = 0.07969;
+	data[6]["fstddev"] = 0.00375;
+	data[7] = {};
+	data[7]["mmean"] = 0.07966;
+	data[7]["mstddev"] = 0.00382;
+	data[7]["fmean"] = 0.07952;
+	data[7]["fstddev"] = 0.00378;
+	data[8] = {};
+	data[8]["mmean"] = 0.07958;
+	data[8]["mstddev"] = 0.00382;
+	data[8]["fmean"] = 0.07935;
+	data[8]["fstddev"] = 0.0038;
+	data[9] = {};
+	data[9]["mmean"] = 0.07942;
+	data[9]["mstddev"] = 0.00381;
+	data[9]["fmean"] = 0.07917;
+	data[9]["fstddev"] = 0.00383;
+	data[10] = {};
+	data[10]["mmean"] = 0.07917;
+	data[10]["mstddev"] = 0.00381;
+	data[10]["fmean"] = 0.07899;
+	data[10]["fstddev"] = 0.00386;
+	data[11] = {};
+	data[11]["mmean"] = 0.07886;
+	data[11]["mstddev"] = 0.00381;
+	data[11]["fmean"] = 0.07881;
+	data[11]["fstddev"] = 0.00389;
+	data[12] = {};
+	data[12]["mmean"] = 0.07849;
+	data[12]["mstddev"] = 0.0038;
+	data[12]["fmean"] = 0.07863;
+	data[12]["fstddev"] = 0.00392;
+	data[13] = {};
+	data[13]["mmean"] = 0.0781;
+	data[13]["mstddev"] = 0.0038;
+	data[13]["fmean"] = 0.07846;
+	data[13]["fstddev"] = 0.00395;
+	data[14] = {};
+	data[14]["mmean"] = 0.07772;
+	data[14]["mstddev"] = 0.0038;
+	data[14]["fmean"] = 0.07829;
+	data[14]["fstddev"] = 0.00397;
+	data[15] = {};
+	data[15]["mmean"] = 0.07739;
+	data[15]["mstddev"] = 0.00379;
+	data[15]["fmean"] = 0.07814;
+	data[15]["fstddev"] = 0.004;
+	data[16] = {};
+	data[16]["mmean"] = 0.07716;
+	data[16]["mstddev"] = 0.00379;
+	data[16]["fmean"] = 0.07799;
+	data[16]["fstddev"] = 0.00403;
+	data[17] = {};
+	data[17]["mmean"] = 0.07703;
+	data[17]["mstddev"] = 0.00378;
+	data[17]["fmean"] = 0.07787;
+	data[17]["fstddev"] = 0.00406;
+	data[18] = {};
+	data[18]["mmean"] = 0.07702;
+	data[18]["mstddev"] = 0.00378;
+	data[18]["fmean"] = 0.07775;
+	data[18]["fstddev"] = 0.00408;
+	data[19] = {};
+	data[19]["mmean"] = 0.07711;
+	data[19]["mstddev"] = 0.00378;
+	data[19]["fmean"] = 0.07765;
+	data[19]["fstddev"] = 0.00411;
+	data[20] = {};
+	data[20]["mmean"] = 0.07728;
+	data[20]["mstddev"] = 0.00377;
+	data[20]["fmean"] = 0.07757;
+	data[20]["fstddev"] = 0.00414;
+	data[21] = {};
+	data[21]["mmean"] = 0.0775;
+	data[21]["mstddev"] = 0.00377;
+	data[21]["fmean"] = 0.0775;
+	data[21]["fstddev"] = 0.00416;
+	data[22] = {};
+	data[22]["mmean"] = 0.07777;
+	data[22]["mstddev"] = 0.00377;
+	data[22]["fmean"] = 0.07744;
+	data[22]["fstddev"] = 0.00419;
+	data[23] = {};
+	data[23]["mmean"] = 0.07804;
+	data[23]["mstddev"] = 0.00376;
+	data[23]["fmean"] = 0.0774;
+	data[23]["fstddev"] = 0.00422;
+	data[24] = {};
+	data[24]["mmean"] = 0.07831;
+	data[24]["mstddev"] = 0.00376;
+	data[24]["fmean"] = 0.07737;
+	data[24]["fstddev"] = 0.00424;
+	data[25] = {};
+	data[25]["mmean"] = 0.07858;
+	data[25]["mstddev"] = 0.00376;
+	data[25]["fmean"] = 0.07735;
+	data[25]["fstddev"] = 0.00427;
+	data[26] = {};
+	data[26]["mmean"] = 0.07882;
+	data[26]["mstddev"] = 0.00375;
+	data[26]["fmean"] = 0.07734;
+	data[26]["fstddev"] = 0.00429;
+	data[27] = {};
+	data[27]["mmean"] = 0.07904;
+	data[27]["mstddev"] = 0.00375;
+	data[27]["fmean"] = 0.07735;
+	data[27]["fstddev"] = 0.00432;
+	data[28] = {};
+	data[28]["mmean"] = 0.07922;
+	data[28]["mstddev"] = 0.00374;
+	data[28]["fmean"] = 0.07736;
+	data[28]["fstddev"] = 0.00435;
+	data[29] = {};
+	data[29]["mmean"] = 0.07938;
+	data[29]["mstddev"] = 0.00374;
+	data[29]["fmean"] = 0.07739;
+	data[29]["fstddev"] = 0.00437;
+	data[30] = {};
+	data[30]["mmean"] = 0.07951;
+	data[30]["mstddev"] = 0.00374;
+	data[30]["fmean"] = 0.07743;
+	data[30]["fstddev"] = 0.0044;
+	data[31] = {};
+	data[31]["mmean"] = 0.07963;
+	data[31]["mstddev"] = 0.00373;
+	data[31]["fmean"] = 0.07747;
+	data[31]["fstddev"] = 0.00442;
+	data[32] = {};
+	data[32]["mmean"] = 0.07975;
+	data[32]["mstddev"] = 0.00373;
+	data[32]["fmean"] = 0.07752;
+	data[32]["fstddev"] = 0.00445;
+	data[33] = {};
+	data[33]["mmean"] = 0.07988;
+	data[33]["mstddev"] = 0.00373;
+	data[33]["fmean"] = 0.07759;
+	data[33]["fstddev"] = 0.00447;
+	data[34] = {};
+	data[34]["mmean"] = 0.08;
+	data[34]["mstddev"] = 0.00372;
+	data[34]["fmean"] = 0.07766;
+	data[34]["fstddev"] = 0.0045;
+	data[35] = {};
+	data[35]["mmean"] = 0.08013;
+	data[35]["mstddev"] = 0.00372;
+	data[35]["fmean"] = 0.07773;
+	data[35]["fstddev"] = 0.00452;
+	data[36] = {};
+	data[36]["mmean"] = 0.08027;
+	data[36]["mstddev"] = 0.00371;
+	data[36]["fmean"] = 0.07782;
+	data[36]["fstddev"] = 0.00454;
+	data[37] = {};
+	data[37]["mmean"] = 0.08042;
+	data[37]["mstddev"] = 0.00371;
+	data[37]["fmean"] = 0.0779;
+	data[37]["fstddev"] = 0.00457;
+	data[38] = {};
+	data[38]["mmean"] = 0.08057;
+	data[38]["mstddev"] = 0.00371;
+	data[38]["fmean"] = 0.078;
+	data[38]["fstddev"] = 0.00459;
+	data[39] = {};
+	data[39]["mmean"] = 0.08072;
+	data[39]["mstddev"] = 0.0037;
+	data[39]["fmean"] = 0.0781;
+	data[39]["fstddev"] = 0.00462;
+	data[40] = {};
+	data[40]["mmean"] = 0.08087;
+	data[40]["mstddev"] = 0.0037;
+	data[40]["fmean"] = 0.0782;
+	data[40]["fstddev"] = 0.00464;
+	data[41] = {};
+	data[41]["mmean"] = 0.08102;
+	data[41]["mstddev"] = 0.0037;
+	data[41]["fmean"] = 0.07831;
+	data[41]["fstddev"] = 0.00466;
+	data[42] = {};
+	data[42]["mmean"] = 0.08117;
+	data[42]["mstddev"] = 0.00369;
+	data[42]["fmean"] = 0.07842;
+	data[42]["fstddev"] = 0.00469;
+	data[43] = {};
+	data[43]["mmean"] = 0.08132;
+	data[43]["mstddev"] = 0.00369;
+	data[43]["fmean"] = 0.07854;
+	data[43]["fstddev"] = 0.00471;
+	data[44] = {};
+	data[44]["mmean"] = 0.08148;
+	data[44]["mstddev"] = 0.00368;
+	data[44]["fmean"] = 0.07866;
+	data[44]["fstddev"] = 0.00473;
+	data[45] = {};
+	data[45]["mmean"] = 0.08165;
+	data[45]["mstddev"] = 0.00368;
+	data[45]["fmean"] = 0.07879;
+	data[45]["fstddev"] = 0.00476;
+	data[46] = {};
+	data[46]["mmean"] = 0.08183;
+	data[46]["mstddev"] = 0.00368;
+	data[46]["fmean"] = 0.07892;
+	data[46]["fstddev"] = 0.00478;
+	data[47] = {};
+	data[47]["mmean"] = 0.08201;
+	data[47]["mstddev"] = 0.00367;
+	data[47]["fmean"] = 0.07905;
+	data[47]["fstddev"] = 0.0048;
+	data[48] = {};
+	data[48]["mmean"] = 0.08221;
+	data[48]["mstddev"] = 0.00367;
+	data[48]["fmean"] = 0.07919;
+	data[48]["fstddev"] = 0.00483;
+	data[49] = {};
+	data[49]["mmean"] = 0.0824;
+	data[49]["mstddev"] = 0.00367;
+	data[49]["fmean"] = 0.07933;
+	data[49]["fstddev"] = 0.00485;
+	data[50] = {};
+	data[50]["mmean"] = 0.0826;
+	data[50]["mstddev"] = 0.00366;
+	data[50]["fmean"] = 0.07947;
+	data[50]["fstddev"] = 0.00487;
+	data[51] = {};
+	data[51]["mmean"] = 0.08279;
+	data[51]["mstddev"] = 0.00366;
+	data[51]["fmean"] = 0.07962;
+	data[51]["fstddev"] = 0.00489;
+	data[52] = {};
+	data[52]["mmean"] = 0.08297;
+	data[52]["mstddev"] = 0.00365;
+	data[52]["fmean"] = 0.07977;
+	data[52]["fstddev"] = 0.00492;
+	data[53] = {};
+	data[53]["mmean"] = 0.08315;
+	data[53]["mstddev"] = 0.00365;
+	data[53]["fmean"] = 0.07992;
+	data[53]["fstddev"] = 0.00494;
+	data[54] = {};
+	data[54]["mmean"] = 0.08334;
+	data[54]["mstddev"] = 0.00365;
+	data[54]["fmean"] = 0.08007;
+	data[54]["fstddev"] = 0.00496;
+	data[55] = {};
+	data[55]["mmean"] = 0.08352;
+	data[55]["mstddev"] = 0.00364;
+	data[55]["fmean"] = 0.08023;
+	data[55]["fstddev"] = 0.00498;
+	data[56] = {};
+	data[56]["mmean"] = 0.08369;
+	data[56]["mstddev"] = 0.00364;
+	data[56]["fmean"] = 0.08039;
+	data[56]["fstddev"] = 0.00501;
+	data[57] = {};
+	data[57]["mmean"] = 0.08386;
+	data[57]["mstddev"] = 0.00364;
+	data[57]["fmean"] = 0.08055;
+	data[57]["fstddev"] = 0.00503;
+	data[58] = {};
+	data[58]["mmean"] = 0.08403;
+	data[58]["mstddev"] = 0.00363;
+	data[58]["fmean"] = 0.08072;
+	data[58]["fstddev"] = 0.00505;
+	data[59] = {};
+	data[59]["mmean"] = 0.08419;
+	data[59]["mstddev"] = 0.00363;
+	data[59]["fmean"] = 0.08088;
+	data[59]["fstddev"] = 0.00507;
+	data[60] = {};
+	data[60]["mmean"] = 0.08436;
+	data[60]["mstddev"] = 0.00362;
+	data[60]["fmean"] = 0.08105;
+	data[60]["fstddev"] = 0.00509;
+	data[61] = {};
+	data[61]["mmean"] = 0.08454;
+	data[61]["mstddev"] = 0.00362;
+	data[61]["fmean"] = 0.08122;
+	data[61]["fstddev"] = 0.00511;
+	data[62] = {};
+	data[62]["mmean"] = 0.08471;
+	data[62]["mstddev"] = 0.00362;
+	data[62]["fmean"] = 0.08139;
+	data[62]["fstddev"] = 0.00514;
+	data[63] = {};
+	data[63]["mmean"] = 0.08489;
+	data[63]["mstddev"] = 0.00361;
+	data[63]["fmean"] = 0.08156;
+	data[63]["fstddev"] = 0.00516;
+	data[64] = {};
+	data[64]["mmean"] = 0.08506;
+	data[64]["mstddev"] = 0.00361;
+	data[64]["fmean"] = 0.08174;
+	data[64]["fstddev"] = 0.00518;
+	data[65] = {};
+	data[65]["mmean"] = 0.08522;
+	data[65]["mstddev"] = 0.0036;
+	data[65]["fmean"] = 0.08191;
+	data[65]["fstddev"] = 0.0052;
+	data[66] = {};
+	data[66]["mmean"] = 0.08537;
+	data[66]["mstddev"] = 0.0036;
+	data[66]["fmean"] = 0.08208;
+	data[66]["fstddev"] = 0.00522;
+	data[67] = {};
+	data[67]["mmean"] = 0.08551;
+	data[67]["mstddev"] = 0.0036;
+	data[67]["fmean"] = 0.08226;
+	data[67]["fstddev"] = 0.00524;
+	data[68] = {};
+	data[68]["mmean"] = 0.08565;
+	data[68]["mstddev"] = 0.00359;
+	data[68]["fmean"] = 0.08243;
+	data[68]["fstddev"] = 0.00526;
+	data[69] = {};
+	data[69]["mmean"] = 0.08578;
+	data[69]["mstddev"] = 0.00359;
+	data[69]["fmean"] = 0.08261;
+	data[69]["fstddev"] = 0.00528;
+	data[70] = {};
+	data[70]["mmean"] = 0.08591;
+	data[70]["mstddev"] = 0.00359;
+	data[70]["fmean"] = 0.08278;
+	data[70]["fstddev"] = 0.0053;
+	data[71] = {};
+	data[71]["mmean"] = 0.08604;
+	data[71]["mstddev"] = 0.00358;
+	data[71]["fmean"] = 0.08296;
+	data[71]["fstddev"] = 0.00533;
+	data[72] = {};
+	data[72]["mmean"] = 0.08616;
+	data[72]["mstddev"] = 0.00358;
+	data[72]["fmean"] = 0.08313;
+	data[72]["fstddev"] = 0.00535;
+	data[73] = {};
+	data[73]["mmean"] = 0.08629;
+	data[73]["mstddev"] = 0.00357;
+	data[73]["fmean"] = 0.0833;
+	data[73]["fstddev"] = 0.00537;
+	data[74] = {};
+	data[74]["mmean"] = 0.08641;
+	data[74]["mstddev"] = 0.00357;
+	data[74]["fmean"] = 0.08346;
+	data[74]["fstddev"] = 0.00539;
+	data[75] = {};
+	data[75]["mmean"] = 0.08653;
+	data[75]["mstddev"] = 0.00357;
+	data[75]["fmean"] = 0.08363;
+	data[75]["fstddev"] = 0.00541;
+	data[76] = {};
+	data[76]["mmean"] = 0.08665;
+	data[76]["mstddev"] = 0.00356;
+	data[76]["fmean"] = 0.0838;
+	data[76]["fstddev"] = 0.00543;
+	data[77] = {};
+	data[77]["mmean"] = 0.08675;
+	data[77]["mstddev"] = 0.00356;
+	data[77]["fmean"] = 0.08396;
+	data[77]["fstddev"] = 0.00545;
+	data[78] = {};
+	data[78]["mmean"] = 0.08685;
+	data[78]["mstddev"] = 0.00355;
+	data[78]["fmean"] = 0.08412;
+	data[78]["fstddev"] = 0.00547;
+	data[79] = {};
+	data[79]["mmean"] = 0.08695;
+	data[79]["mstddev"] = 0.00355;
+	data[79]["fmean"] = 0.08428;
+	data[79]["fstddev"] = 0.00549;
+	data[80] = {};
+	data[80]["mmean"] = 0.08705;
+	data[80]["mstddev"] = 0.00355;
+	data[80]["fmean"] = 0.08444;
+	data[80]["fstddev"] = 0.00551;
+	data[81] = {};
+	data[81]["mmean"] = 0.08714;
+	data[81]["mstddev"] = 0.00354;
+	data[81]["fmean"] = 0.0846;
+	data[81]["fstddev"] = 0.00553;
+	data[82] = {};
+	data[82]["mmean"] = 0.08723;
+	data[82]["mstddev"] = 0.00354;
+	data[82]["fmean"] = 0.08476;
+	data[82]["fstddev"] = 0.00555;
+	data[83] = {};
+	data[83]["mmean"] = 0.08732;
+	data[83]["mstddev"] = 0.00354;
+	data[83]["fmean"] = 0.08492;
+	data[83]["fstddev"] = 0.00557;
+	data[84] = {};
+	data[84]["mmean"] = 0.08742;
+	data[84]["mstddev"] = 0.00353;
+	data[84]["fmean"] = 0.08508;
+	data[84]["fstddev"] = 0.00559;
+	data[85] = {};
+	data[85]["mmean"] = 0.08811;
+	data[85]["mstddev"] = 0.00356;
+	data[85]["fmean"] = 0.08533;
+	data[85]["fstddev"] = 0.00528;
+
+	return data[age][sex + value];
+}
+
+</script>
+
+<style>
+.result {
+	border: 1px solid;
+	padding: 5px;
+	margin: 5px;
+}
+
+</style>
+
+</body>
+</html>

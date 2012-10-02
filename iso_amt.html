@@ -1,0 +1,168 @@
+<html>
+<head>
+	<title>ISO exercise calculator</title>
+</head>
+
+<body>
+<h1>ISO exercise calculator</h1>
+
+<h2>Overview</h2>
+
+<ul>
+	<li>This calculator determines how many stocks you should sell after purchasing 
+		an ISO avoid any out of pocket expense for the purchase, regular tax on the 
+		sale and AMT on the shares held.</li>
+	<li>When you purchase stocks through an ISO, you owe no income tax on the difference 
+		between your strike price and the market price on the date you purchase.</li>
+	<li>However, that difference (the spread) *is* considered income for calculating AMT. 
+		The	rules are such that any reasonably-sized purchase through an ISO will probaby
+		trigger AMT.</li>
+	<li>If you sell the stock purchased in the same tax year as the purchase, the profits
+		are taxed as regular income, without any AMT consequences.</li>
+	<li>This calculator is way too simple to accurately calculate AMT. Instead it assumes
+		that you're going to pay AMT on the spread of any options you keep. This is 
+		a pessimistic assumption for most tax payers.</li>
+	<li><strong>I am an accounting hobbyist and not a tax professional. These calculations 
+		are just for fun! Don't trust me! Don't blame me! Don't tase me!</strong></li>
+</ul>
+
+<h2>Glossary</h2>
+
+<dl>
+	<dt>Options purchased</dt>
+	<dd>How many shares you are purchasing</dd>
+
+	<dt>Strike price</dt>
+	<dd>Selling the stock after the end of the holding period</dd>
+
+	<dt>Market Price</dt>
+	<dd>The stock price on the open market on the day that the stock is purchased, and
+		the price at which you sell the stock (a bad assumption, since you'll probably
+		need to wait a day or two to sell).</dd>
+
+	<dt>Regular tax rate</dt>
+	<dd>Your tax rate for ordinary income</dd>
+
+	<dt>AMT tax rate</dt>
+	<dd>The current tax rate for calculating AMT (default 26%, but increases to 28%
+		for income over $175,000 - we're not sophisticated enough or wealthy enough
+		to calculate that yet :).</dd>
+</dl>
+
+<h2>Calculator</h2>
+
+<form onSubmit="return calculate();">
+	<table>
+		<tr><td>Options purchased:</td><td><input type="text" id="options_purchased"></td></tr>
+		<tr><td>Strike price:</td><td>$<input type="text" id="strike_price"></td></tr>
+		<tr><td>Market price</td><td>$<input type="text" id="market_price"></td></tr>
+		<tr><td>Regular tax rate:</td><td><input type="text" id="regular_tax_percent">%</td></tr>
+		<tr><td>AMT tax rate:</td><td><input type="text" id="amt_tax_percent" value="26">%</td></tr>
+		<tr><td><input type="submit"></td></tr>
+	</table>
+</form>
+
+<h2>Results</h2>
+<div class="result">
+	<h3>Results</h3>
+	<table>
+		<tr><td>Purchase cost:</td><td id="purchase_cost"></td></tr>
+		<tr><td>Options sold:</td><td id="options_sold"></td></tr>
+		<tr><td>Income from sale:</td><td id="sale_income"></td></tr>
+		<tr><td>Regular tax on sales:</td><td id="regular_tax"></td></tr>
+		<tr><td>AMT on options held:</td><td id="amt_tax"></td></tr>
+		<tr><td>Net:</td><td id="net"></td></tr>
+	</table>
+</div>
+
+<script type="text/javascript">
+
+function calculate() {
+	var input_keys = ['options_purchased', 'strike_price', 'market_price', 'regular_tax_percent', 'amt_tax_percent']
+	, values = getValues(input_keys)
+	;
+
+	values.purchase_cost = values.options_purchased * values.strike_price;
+	values.spread = values.market_price - values.strike_price;
+	values.amt_tax_rate = values.amt_tax_percent / 100;
+	values.regular_tax_rate = values.regular_tax_percent / 100;
+
+	// we want to sell enough to balance all expenses
+	// so we're solving for options_sold in the following equation:
+	// options_sold * market_price = purchase_cost + tax_on_options_sold + amt_on_options_held
+	// * tax_on_options_sold = options_sold * spread * regular_tax_rate
+	// * amt_on_options_held = options_held * spread * amt_tax_rate
+	// * options_held = options_purchased - options_sold
+	// if I did my algebra correctly we get:
+
+	values.options_sold = 
+		(values.purchase_cost + (values.options_purchased * values.spread * values.amt_tax_rate))
+		/
+		(values.market_price - (values.spread * values.regular_tax_rate) + (values.spread * values.amt_tax_rate));
+	values.options_sold = Math.round(values.options_sold);
+	
+	values.options_held = values.options_purchased - values.options_sold;
+
+	values.sale_income = values.options_sold * values.market_price;
+
+	values.regular_tax = values.options_sold * values.spread * values.regular_tax_rate;
+	values.amt_tax = values.options_held * values.spread * values.amt_tax_rate;
+
+	values.net = values.sale_income - values.purchase_cost - values.regular_tax - values.amt_tax;
+
+	var money_keys = ['purchase_cost', 'sale_income', 'regular_tax', 'amt_tax', 'net'];
+	for (var i = 0; i < money_keys.length; i++) {
+		values[money_keys[i]] = formatMoney(values[money_keys[i]]);
+	}
+
+	var output_keys = ['purchase_cost', 'options_sold', 'sale_income', 'regular_tax', 'amt_tax', 'net'];
+	setValues(output_keys, values);
+	return false;
+}
+
+function getValues(keys) {
+	var values = {};
+	for (var i = 0; i < keys.length; i++) {
+		values[keys[i]] = parseFloat($('#' + keys[i]).val());
+	}
+	return values;
+}
+
+function setValues(keys, values) {
+	for (var i = 0; i < keys.length; i++) {
+		$('#' + keys[i]).html(values[keys[i]]);
+	}
+}
+
+// thanks http://www.mredkj.com/javascript/numberFormat.html
+function formatMoney(price) {
+	price = Math.round(price * 100) / 100;
+	price += '';
+	var x = price.split('.');
+	var dollars = x[0];
+	var cents = x.length > 1 ? '.' + x[1] : '.00';
+	var rgx = /(\d+)(\d{3})/;
+	while (rgx.test(dollars)) {
+		dollars = dollars.replace(rgx, '$1' + ',' + '$2');
+	}
+  return '$' + dollars + cents;
+}
+
+</script>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+
+<style>
+dt {
+	font-weight: bold;
+}
+
+.result {
+	border: 1px solid;
+	padding: 5px;
+	margin: 5px;
+}
+</style>
+
+</body>
+</html>
