@@ -2,16 +2,14 @@
 	<head>
 		<title>Chronumerology</title>
 		<style>
-			dt {
-				font-weight: bold;
-			}
-
 			#graph {
 				width: 600px;
 				height: 600px;
 			}
 		</style>
 		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+		<!-- Including JS directly from GH is probably not classy... -->
+		<script src="https://raw.github.com/phstc/jquery-dateFormat/master/jquery.dateFormat-1.0.js" type="text/javascript"></script>
 		<script src="http://people.iola.dk/olau/flot/jquery.flot.js" type="text/javascript"></script>
 	</head>
 	<body>
@@ -173,8 +171,7 @@
 			}
 
 			function generateDataPoint(age1, age2, curDate, dataset) {
-				var x = curDate.toLocaleFormat('%Y%m%d');
-				/* var x = curDate.valueOf(); */
+				var x = $.format.date(curDate.toString(), 'yyyyMMdd');
 				dataset.and.push([x, age1 & age2]);
 				dataset.or.push([x, age1 | age2]);
 				dataset.xor.push([x, age1 ^ age2]);
