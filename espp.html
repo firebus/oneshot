@@ -85,6 +85,7 @@
 <div class="result">
 	<h3>Results</h3>
 	<table>
+    <tr><td>Purchase price:</td><td id="purchase"></td></tr>
 		<tr><td>Shares purchased:</td><td id="shares"></td></tr>
 		<tr><td>Income from sale:</td><td id="gross"></td></tr>
 		<tr><td>Pre-tax profit from sale:</td><td id="profit"></td></tr>
@@ -96,7 +97,7 @@
 	<h3>Disqualifying Distribution</h3>
 	<table>
 		<tr><td>Regular income:</td><td class="regular_income"></td></tr>
-		<tr><td>Capital gains:</td><td class="capital_gains"></td></tr>
+		<tr><td>Short-term capital gains:</td><td class="capital_gains"></td></tr>
 		<tr><td>Tax:</td><td class="tax"></td></tr>
 		<tr><td>Net profit:</td><td class="net_profit"></td></tr>
 	</table>
@@ -106,7 +107,7 @@
 	<h3>Qualifying Distribution</h3>
 	<table>
 		<tr><td>Regular income:</td><td class="regular_income"></td></tr>
-		<tr><td>Capital gains:</td><td class="capital_gains"></td></tr>
+		<tr><td>Long-term capital gains:</td><td class="capital_gains"></td></tr>
 		<tr><td>Tax:</td><td class="tax"></td></tr>
 		<tr><td>Net profit:</td><td class="net_profit"></td></tr>
 	</table>
@@ -125,7 +126,8 @@ function calculate() {
 	values.disqualifying_net = calculateDisqualifying(values);
 	values.qualifying_net = calculateQualifying(values);
 	values.gain_loss = values.qualifying_net - values.disqualifying_net;
-	
+
+  $('#purchase').html('$' + round(values.purchase_price));
 	$('#shares').html(round(values.shares) + ' shares purchased');
 	$('#gross').html('$' + round(values.gross));
 	$('#profit').html('$' + round(values.profit));
@@ -147,8 +149,8 @@ function getValues() {
 
 function calculateDisqualifying(values) {
 	var regular_income = (values.market_price - values.purchase_price) * values.shares
-	, capital_gains = 0
-	, tax = regular_income * (values.regular_tax_rate / 100)
+	, capital_gains = values.profit - regular_income
+	, tax = (regular_income + capital_gains) * (values.regular_tax_rate / 100)
 	, net_profit = values.profit - tax
 	;
 
